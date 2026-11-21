@@ -1,26 +1,5 @@
 #!/usr/bin/env python3
-"""把项目知识库（.kb/）同步到 Obsidian 仓库。
-
-用法:
-    python3 sync_obsidian.py <项目根目录或.kb目录> <Obsidian仓库路径> [--name 项目名] [--dest 目标文件夹]
-
-行为:
-    在 <仓库>/<目标文件夹>/<项目名>/ 下生成:
-      - <项目名>.md          索引笔记（由 .kb/README.md 转换而来，含 frontmatter 与 wikilink 导航）
-      - 其余全部知识库文档    （标准情况下为 10 份主题文档；加 frontmatter，内部链接转为 wikilink；
-                              已自带 frontmatter 的文档保持原样，不重复注入）
-      - assets/              资源目录原样复制（跳过 .gitkeep）
-
-    转换细节: 代码块内的示例链接不转换；表格内 wikilink 的 | 自动转义为 \\|；
-    "> ⏳ 待补充：" 引用块升级为 Obsidian 的 [!todo] callout。
-
-    同步是"只增改不删"的镜像: 每次覆盖上述同步产物（包括你手工改过的同名笔记——
-    请把自己的笔记起不同的名字），但不会删除目标文件夹里的其他文件；改过 --name/--dest
-    后旧文件夹会残留，需手动清理。同步成功后在 .kb/.obsidian-sync.json 记录目标位置，
-    供下次直接复用。可安全重复运行。
-
-    --dest 默认为 "项目知识库"；--name 默认为项目根目录名。
-"""
+"""把项目知识库（.kb/ 及 .kb/runs/ 轨迹文档）同步到 Obsidian 仓库。"""
 import argparse
 import json
 import re
@@ -30,7 +9,6 @@ from datetime import date
 from pathlib import Path
 from urllib.parse import unquote
 
-# 指向本地 .md 文件的相对链接（排除 http(s)、锚点开头、含目录的路径；(?<!!) 排除 ![嵌入] 语法）
 MD_LINK = re.compile(r"(?<!!)\[([^\]\[]+)\]\((?!https?://|#)([^)/\s]+\.md)(#[^)]*)?\)")
 FENCE = re.compile(r"(```.*?```|~~~.*?~~~)", re.S)
 INLINE_CODE = re.compile(r"(`[^`\n]*`)")
@@ -41,17 +19,15 @@ def to_wikilink(match: re.Match, prefix: str, in_table: bool) -> str:
     label, target, anchor = match.group(1), unquote(match.group(2)), match.group(3) or ""
     stem = target[:-3]
     head = f"#{anchor.lstrip('#')}" if anchor else ""
-    sep = "\\|" if in_table else "|"  # 表格内的 | 必须转义，否则 Obsidian 会拆碎表格列
-    # 全路径 wikilink：不同项目共用同名文档（tech-stack.md 等），全路径可避免跨项目歧义
+    sep = "\\|" if in_table else "|"
     return f"[[{prefix}/{stem}{head}{sep}{label}]]"
 
 
 def convert_body(text: str, prefix: str) -> str:
-    """转换正文：跳过代码块与行内代码，处理 wikilink 与待补充 callout。"""
     parts = FENCE.split(text)
     out = []
     for i, part in enumerate(parts):
-        if i % 2 == 1:  # 代码围栏原样保留
+        if i % 2 == 1:
             out.append(part)
             continue
         lines = []
@@ -73,12 +49,12 @@ def convert_body(text: str, prefix: str) -> str:
 
 
 def yaml_scalar(v) -> str:
-    return json.dumps(str(v), ensure_ascii=False)  # JSON 字符串是合法 YAML 标量，天然处理引号/冒号/井号
+    return json.dumps(str(v), ensure_ascii=False)
 
 
 def add_frontmatter(text: str, props: dict) -> str:
     if text.startswith("---\n") and "\n---\n" in text[4:]:
-        return text  # 已有 frontmatter 就不重复加
+        return text
     lines = ["---"]
     for k, v in props.items():
         if isinstance(v, list):
@@ -96,6 +72,7 @@ def main() -> int:
     ap.add_argument("vault", help="Obsidian 仓库路径")
     ap.add_argument("--name", help="项目名（默认取项目根目录名）")
     ap.add_argument("--dest", default="项目知识库", help='仓库内目标文件夹（默认 "项目知识库"）')
+    ap.add_argument("--no-record", action="store_true", help="不写入 .kb/.obsidian-sync.json（避免污染干净工作树）")
     args = ap.parse_args()
 
     src = Path(args.source).expanduser().resolve()
@@ -138,7 +115,6 @@ def main() -> int:
             text = add_frontmatter(text, {
                 "title": name,
                 "tags": ["项目知识库", f"项目知识库/{name}"],
-                "source": str(root),
                 "synced": today,
             })
         else:
@@ -149,6 +125,22 @@ def main() -> int:
             })
         out.write_text(text, encoding="utf-8")
         synced.append(out.name)
+
+    runs_dir = kb / "runs"
+    n_runs = 0
+    if runs_dir.is_dir():
+        for f in sorted(runs_dir.rglob("*")):
+            if f.is_file():
+                rel = f.relative_to(runs_dir)
+                dst = target / "runs" / rel
+                dst.parent.mkdir(parents=True, exist_ok=True)
+                if f.suffix == ".md":
+                    txt = convert_body(f.read_text(encoding="utf-8-sig"), f"{link_prefix}/runs/{rel.parent.as_posix()}")
+                    txt = add_frontmatter(txt, {"tags": [f"项目知识库/{name}", "mission-run"], "synced": today})
+                    dst.write_text(txt, encoding="utf-8")
+                else:
+                    shutil.copy2(f, dst)
+                n_runs += 1
 
     assets = kb / "assets"
     n_assets = 0
@@ -161,14 +153,15 @@ def main() -> int:
                 shutil.copy2(f, dst)
                 n_assets += 1
 
-    record = {"vault": str(vault), "dest": args.dest, "name": name, "synced": today}
-    (kb / ".obsidian-sync.json").write_text(
-        json.dumps(record, ensure_ascii=False, indent=2), encoding="utf-8")
+    if not args.no_record:
+        record = {"vault": str(vault), "dest": args.dest, "name": name, "synced": today}
+        (kb / ".obsidian-sync.json").write_text(
+            json.dumps(record, ensure_ascii=False, indent=2), encoding="utf-8")
 
     print(f"已同步到: {target}")
     print(f"笔记 ({len(synced)}): {', '.join(synced)}")
+    print(f"运行档案文件: {n_runs} 个")
     print(f"资源文件: {n_assets} 个")
-    print(f"同步记录: {kb / '.obsidian-sync.json'}")
     print(f"在 Obsidian 中打开 [[{link_prefix}/{name}]] 即可进入导航。")
     return 0
 

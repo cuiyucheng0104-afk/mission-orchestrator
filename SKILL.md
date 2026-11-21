@@ -1,161 +1,61 @@
 ---
-name: kb-manager
+name: mission-orchestrator
 description: >
-  为本地开发项目初始化和维护标准化知识库（.kb/ 目录）。内置 10 个标准文档模板：
-  技术栈、API 文档、数据库架构、部署指南、开发规范、业务逻辑、测试文档、项目配置、
-  常见问题（FAQ）、变更日志。支持一键初始化完整知识库结构、扫描代码库预填真实内容、
-  自动生成 README 导航、创建 assets 资源目录，并提供文档维护工作流。
-  当用户提到"知识库"、"项目文档"、"初始化文档"、"文档模板"、"整理文档"、
-  "knowledge base"、"kb"、"project docs"，或希望为某个代码项目建立、补全、
-  更新成套文档时，务必使用本技能——即使用户只是说"帮我把这个项目的文档搞一下"
-  或"新同事看不懂项目，写点文档"也应触发。当用户想把项目知识库/项目文档同步、
-  导入、发布到 Obsidian（"同步到 Obsidian"、"放进 Obsidian 仓库"、
-  "sync kb to Obsidian"）时也应使用本技能。
+  第一性原理驱动的长复杂任务编排器、工程质检标准与项目知识库超级技能（Phase 0 元认知对齐 +
+  Harness + Loop + Graph + 红队/二三阶影响/新人认知多环节独立审核 + 历史包袱与根因固化 + .kb/Obsidian 全链路可溯源）。
+  整合并全面升级自 kb-manager 与 delivery-readiness-audit。
+  触发于：长复杂任务、需求架构设计与方案对比、仓库工程体检与改良、多代理编排、代码/交付质检审核、
+  历史包袱与返因复盘、初始化或维护 .kb/ 知识库、同步 Obsidian、以及判断"做完了吗/能交付了吗"。
 ---
 
-# KB Manager — 本地项目知识库管理
+# Mission Orchestrator v2.0 — 长复杂任务编排与工程质检标准
 
-为任意本地开发项目建立并维护一套标准化知识库，存放在项目根目录的 `.kb/` 隐藏文件夹中。
-知识库的目标读者是"三个月后的自己"和"刚加入的新同事"：文档必须基于项目的真实情况，
-而不是泛泛的教科书内容。
+> **核心信条**：先问清问题真伪（Phase 0），再用 Harness 赋予能力、用 Loop 逼出实证、用 Graph 隔离并发与评审，最后把每次失败与返工固化成自动化门禁与 `.kb/` 溯源资产。
 
-## 知识库结构
+## 零、铁律（STOP 红线）
 
-```
-<项目根目录>/.kb/
-├── README.md            # 导航入口：文档索引 + 状态标记
-├── tech-stack.md        # 技术栈：所有技术选型及理由
-├── api.md               # API 文档：接口约定 + 完整接口列表
-├── database.md          # 数据库架构：ER 图、表结构、索引策略
-├── deployment.md        # 部署指南：Docker/K8s 配置、CI/CD 流程
-├── dev-standards.md     # 开发规范：代码规范、Git 工作流
-├── business-logic.md    # 业务逻辑：业务流程图、领域模型
-├── testing.md           # 测试文档：测试策略和用例
-├── project-config.md    # 项目配置：环境变量、配置说明
-├── faq.md               # 常见问题：FAQ 和故障排查
-├── changelog.md         # 变更日志：版本历史和更新记录
-└── assets/              # 资源目录
-    ├── diagrams/        # 架构图、流程图源文件
-    ├── screenshots/     # 界面截图
-    └── icons/           # 图标等素材
-```
+1. **先判真伪需求与第一性原理，再立契约**：禁止盲从表面提问；设计/模糊任务必须先对齐偏好并给 3 版方案（[00-first-principles-and-alignment.md](references/00-first-principles-and-alignment.md)）。
+2. **无 `done_when` 不开工，且代码任务必须独立 Worktree 隔离**：未签订 `contract.yaml` 禁止改业务代码；涉及多文件改造或提 PR 的任务必须从干净基准切出独立 `git worktree`，严禁在共享工作树与其它会话互踩。
+3. **上下文是 RAM，`.kb/` 是硬盘**：决策、`DEAD_ENDS.md`、`PROGRESS.md`、`trace.jsonl` 必须落盘；`.kb/.gitignore` 默认屏蔽 `.obsidian-sync.json` 等本机路径文件。
+4. **禁止无 AI 介入的空壳编排器与空壳门禁**：执行/评审节点必须明确 **Mode A（独立上下文子代理真跑）** 或 **Mode B（`run_loop.py` 调 AI CLI 闭环）**；门禁必须验证真实内容与实测输出，禁止只查文件存在性。
+5. **先写失败检查，再写实现（Red → Green）**：可机检目标必须在修复前看到测试/检查失败一次。
+6. **不许自己审自己，且必须过红队 + 二/三阶影响 + 新人认知审**：生成者与审核者上下文物理隔离；禁止把 `"looks good / should pass"` 当证据。
+7. **同错两次即停（`exit 2`）**：`log_trace.py` 检测到同一 `saw` 错误重复出现时立即熔断升级人类。
+8. **CI 绿 ≠ 可交付，且根因必须沉淀成基础设施**：收尾前必过四维实测交付审计（`ready / needs-config / blocked`），并将共性 Bug/返工固化成单测、Hook、CI 或 Skill 规则。
 
-## 工作流一：初始化知识库
+---
 
-用户说"初始化知识库"、"给这个项目建文档"时执行。
+## 一、技能地图（Map，按需加载）
 
-**第 1 步 — 搭建结构。** 运行本技能自带的脚手架脚本：
+| 阶段 | 职责 | 参考文档（按需读） | 确定性脚本 / 模板 |
+|---|---|---|---|
+| **Phase 0** | 第一性原理、真伪需求辨析、提问对齐、3 方案、跨领域类比 | [00-first-principles-and-alignment.md](references/00-first-principles-and-alignment.md) | — |
+| **Phase 1** | Worktree 隔离、`contract.yaml`（`done_when`/`fence`/`undo_tier`）、`Write It Twice` | [01-harness-contract.md](references/01-harness-contract.md) | `scripts/init_mission.py` |
+| **Phase 2–3** | Loop vs Graph、Early-Start 并行、Evidence、`EXPECTED vs SAW`、同错两次退出 | [02-loop-and-graph.md](references/02-loop-and-graph.md) | `scripts/run_loop.py`, `scripts/log_trace.py` |
+| **Phase 4** | 三道门审核 + **二/三阶影响、钢人红队反驳、新人认知成本、四维实测交付审计** | [03-multi-stage-review.md](references/03-multi-stage-review.md) | `scripts/readiness-audit.workflow.js` |
+| **Phase 5** | **Git 历史包袱清理、慢节点/卡顿复盘、Bug 根因固化**、`.kb/` 更新与 Obsidian 同步 | [04-kb-and-obsidian.md](references/04-kb-and-obsidian.md) | `scripts/init_kb.py`, `scripts/sync_obsidian.py` |
+| **实战参考** | 完整脱敏端到端范例（`higgsfield-case-library` PR #6） | [CASE_STUDY.md](examples/higgsfield-case-library-pr6/CASE_STUDY.md) | — |
 
-```bash
-python3 <本技能目录>/scripts/init_kb.py <项目根目录>
-```
+---
 
-脚本会把 `assets/templates/` 中的全部模板复制到 `<项目根目录>/.kb/`，
-并创建 `assets/` 子目录。已存在的文件不会被覆盖，可以安全地重复运行。
+## 二、六阶段标准工作流
 
-**第 2 步 — 扫描项目。** 初始化的价值在于预填真实内容，而不是留一堆空模板。
-按下面的清单扫描项目（存在什么读什么，不存在就跳过）：
-
-| 信息 | 去哪里找 |
-|------|----------|
-| 语言、框架、依赖及版本 | `package.json`、`requirements.txt`、`pyproject.toml`、`go.mod`、`Cargo.toml`、lock 文件 |
-| 数据库与表结构 | `prisma/schema.prisma`、`models.py`、`migrations/`、`*.sql`、ORM 实体定义 |
-| API 路由 | 路由注册文件、controller/handler 目录、OpenAPI/Swagger 文件 |
-| 部署方式 | `Dockerfile`、`docker-compose.yml`、`k8s/`、`.github/workflows/`、`Procfile` |
-| 环境变量 | `.env.example`、`.env.template`、代码中的 `process.env` / `os.environ` 读取 |
-| 代码规范 | `.eslintrc`、`.prettierrc`、`ruff.toml`、`.editorconfig`、CI 中的 lint 步骤 |
-| 测试 | `tests/`、`__tests__/`、测试框架依赖、CI 中的测试命令 |
-| 业务背景 | 现有 `README.md`、注释、目录命名 |
-
-**第 3 步 — 预填模板。** 用扫描到的事实替换模板中的占位内容：
-
-- 只写扫描到的**事实**。版本号、路径、命令都要来自项目本身，不要凭框架的一般知识编造。
-- 扫描不到的部分保留模板结构，用 `> ⏳ 待补充：<需要谁提供什么信息>` 标注，
-  让用户一眼看到欠什么账。选型"理由"、业务背景这类只有人知道的内容，宁可留待补充也不要虚构。
-- 每份文档顶部的"最后更新"日期填当天。
-
-**第 4 步 — 生成导航。** 更新 `.kb/README.md` 中的文档索引表：每份文档一行，
-写清一句话说明和状态（✅ 已完成 / 🚧 部分完成 / ⏳ 待补充）。状态要诚实反映预填程度。
-
-**第 5 步 — 汇报。** 向用户总结：建了哪些文档、预填了哪些真实信息、
-哪些地方标了"待补充"需要用户提供输入。
-
-## 工作流二：维护与更新
-
-用户说"更新知识库"、"我加了个新接口，同步一下文档"，或在做完代码改动后要求同步文档时执行。
-
-1. 弄清改了什么：看用户描述，必要时用 `git diff` / `git log` 或直接读相关代码。
-2. 只更新受影响的文档（新接口 → `api.md`；新表 → `database.md`；新环境变量 → `project-config.md`……），
-   同样遵守"只写事实"的原则。
-3. **每次更新都要在 `changelog.md` 的 `[未发布]` 段落追加记录**：写进对应变动类型的小节
-   （Added/Changed/Deprecated/Removed/Fixed/Security 六类），并替换该小节的（待补充）占位
-   ——变更日志是知识库的审计线索，跳过它知识库就会悄悄腐烂。
-4. 若文档状态变化（如从 ⏳ 变 ✅），同步更新 `README.md` 索引表中的状态和"最后更新"日期。
-
-如果项目还没有 `.kb/`，先走工作流一。
-
-## 工作流三：查阅与回答
-
-用户询问项目相关问题（"这个项目怎么部署？"、"数据库有哪些表？"）且项目存在 `.kb/` 时：
-先读 `.kb/README.md` 找到对应文档，基于文档回答；发现文档与代码不一致时，
-以代码为准回答，并主动提出更新文档。
-
-## 工作流四：同步到 Obsidian
-
-用户说"同步到 Obsidian"、"把知识库放进 Obsidian"时执行。
-
-**第 1 步 — 确定仓库路径。** 依次尝试：
-1. 项目 `.kb/.obsidian-sync.json` 存在（此前同步过）→ 直接复用其中记录的仓库路径；
-2. 读 Obsidian 的仓库清单自动发现：macOS 在 `~/Library/Application Support/obsidian/obsidian.json`，
-   Windows 在 `%APPDATA%\obsidian\obsidian.json`，Linux 在 `~/.config/obsidian/obsidian.json`
-   （Flatpak/Snap 安装路径可能不同）。只有一个仓库就直接用；有多个则列出让用户选；
-3. 文件不存在或解析失败 → 直接询问用户仓库路径（脚本会校验 `.obsidian` 目录，传错会明确报错）。
-
-**第 2 步 — 运行同步脚本：**
-
-```bash
-python3 <本技能目录>/scripts/sync_obsidian.py <项目根目录> <仓库路径>
+```text
+[Phase 0: 第一性原理与 3 方案对齐] ──▶ [Phase 1: 隔离 Worktree + 契约/内存] ──▶ [Phase 2-3: Loop / Graph 证据闭环]
+                                                                                           │
+[Phase 5: 历史/慢点/根因固化 + KB/Obsidian] ◀── [Phase 4: 三道门 + 红队/二三阶/认知/实测审计] ◀─┘
 ```
 
-脚本会在仓库的 `项目知识库/<项目名>/` 下生成：以项目名命名的索引笔记（含 frontmatter、
-tags 和 wikilink 导航，由 README 转换而来）+ README 之外的全部知识库文档（标准情况下为
-10 份主题文档；已自带 frontmatter 的文档保持原样）+ assets 资源。内部链接自动转为全路径
-wikilink 以避免多项目同名文档歧义，表格内的 wikilink 会转义 `\|`，代码块内的示例链接不转换，
-`> ⏳ 待补充：` 会升级为 `[!todo]` callout。同步覆盖自己的产物、不删除用户额外创建的笔记，
-可重复运行；成功后在 `.kb/.obsidian-sync.json` 记录目标位置。项目名、目标文件夹可用
-`--name`、`--dest` 覆盖。
-
-**第 3 步 — 汇报。** 告诉用户同步到了哪个路径、在 Obsidian 里打开哪个笔记开始浏览。
-之后执行工作流二时，若发现 `.kb/.obsidian-sync.json` 存在，更新完文档主动提醒用户
-可以再次同步（复用记录的仓库路径，无需重新询问）。
-
-## 写作原则
-
-- **事实优先。** 知识库的价值等于内容的可信度。一条编造的版本号会让用户怀疑整个知识库。
-- **具体到可执行。** "运行测试"不如 `pnpm test`；"配置环境变量"不如列出变量名和取值示例。
-- **保持简短。** 每份文档服务一个明确问题，不重复其他文档的内容，用链接互相引用。
-- **图表放 assets。** Mermaid 图直接内嵌 Markdown；导出的图片、截图放进 `.kb/assets/` 对应子目录并相对引用。
-
-## 方法论参考
-
-模板背后的方法论要点与出处（Keep a Changelog、Conventional Commits、SemVer、ADR、Diátaxis、
-12-Factor 配置、Mermaid ER 图/流程图）汇总在本技能的 `references/best-practices.md`。
-按需查阅：只在需要向用户解释某条规范细节、或对模板中某个约定有疑问时读取，日常初始化和更新不必加载。
-
-## 模板一览
-
-模板都在本技能的 `assets/templates/` 目录，初始化脚本会自动复制，一般不需要手动读取。
-只有当用户要求单独补建某一份文档时，才读取对应模板作为结构参考：
-
-| 文档 | 模板文件 | 回答的问题 |
-|------|----------|-----------|
-| 技术栈 | `tech-stack.md` | 用了什么技术，为什么选它 |
-| API 文档 | `api.md` | 有哪些接口，怎么调用 |
-| 数据库架构 | `database.md` | 数据长什么样，存在哪 |
-| 部署指南 | `deployment.md` | 怎么部署到各个环境 |
-| 开发规范 | `dev-standards.md` | 代码怎么写，分支怎么管 |
-| 业务逻辑 | `business-logic.md` | 这个系统在业务上做什么 |
-| 测试文档 | `testing.md` | 怎么验证代码是对的 |
-| 项目配置 | `project-config.md` | 本地怎么跑起来，有哪些开关 |
-| 常见问题 | `faq.md` | 踩过什么坑，怎么爬出来 |
-| 变更日志 | `changelog.md` | 什么时候改了什么 |
+1. **Phase 0（先想透再立靶）**：
+   - 判断用户是否在把**症状当原因**、**手段当目标**；用第一性原理拆到底层约束；
+   - 遇到架构/选型/存在歧义的需求：先提 2–4 个关键澄清问题对齐偏好，再给出 **3 版差异化方案**（极简止血 / 平衡工程 / 彻底重构，含各自二/三阶影响与钢人反驳点）供拍板。*（注：若用户需求高度明确、边界清晰或已给出完整规范，可精简提问直接进入 Phase 1，但仍须完成真伪需求自检。）*
+2. **Phase 1（隔离 + 契约）**：
+   - 跑 `python3 <skill_dir>/scripts/init_mission.py <project_root> --goal "<目标>"`；代码/PR 任务切出独立 `git worktree`；填写 `contract.yaml`（若执行中发现需扩展修复范围，**必须先显式修订 `contract.yaml` 再改文件**）。
+3. **Phase 2–3（Loop / Graph 执行）**：
+   - 默认单 Loop；仅在通过 Early-Start Test（无真实依赖可并行）、需独立上下文隔离或需冻结通过节点时拆 Graph；
+   - 先写失败检查（Red）→ 实现修复（Green）→ 每步用 `log_trace.py` 记账，遇 `exit 2` 立刻升级。
+4. **Phase 4（多环节独立质检）**：
+   - 派出**独立上下文只读 Reviewer** 执行三道门：契约围栏核对 → **红队反驳 + 二/三阶推演 + 新人认知审查** → **四维度实测交付审计**（`ready / needs-config / blocked`，覆盖干净隔离环境如 `python3 -I`、`LC_ALL=C`、`无可选二进制` 场景）。
+5. **Phase 5（复盘沉淀与同步）**：
+   - 审视 Git 演变与历史包袱（识别可安全删除的死代码/旧补丁）、排查流程慢点（如轮询空转/重复扫全库）、将本次暴露的共性根因固化进 `tests/` / Hook / CI / Skill；
+   - 更新 `.kb/` 与 `changelog.md`，按需调用 `sync_obsidian.py`（提交前确认无本机路径文件入暂存区）。

@@ -1,0 +1,36 @@
+run_id: "2026-11-22-repo-audit-and-upgrade"
+goal: "基于 mission-orchestrator（Harness+Loop+Graph）全面评估 higgsfield-case-library 的开发方式、产出质量与多环节工程质量；落地高杠杆工程改良（自编排 Harness 体检/门禁/测试/文档一致性修复）；在隔离 worktree 经独立上下文三道门审核后推送分支并创建 PR。"
+inputs:
+  - "AGENTS.md, README.md, 00 首页.md, 01 总目录与阅读指引.md"
+  - "指引/ 全部手册与盘点报告"
+  - "tools/ 全部工程脚本与 实验室/ 文件"
+  - "复刻/, 源码索引/, 媒体清单.tsv, 实验室台账.tsv"
+output: "1) 仓库工程质量全维评估报告（含可复现数据与证据分级）; 2) 可验证的仓库工程改良（Harness 门禁、自动化测试、缺陷修复与 .kb/ 溯源沉淀）; 3) GitHub Pull Request (feat/repo-harness-ci-2026-11 -> clean-history-2026-11)"
+constraints:
+  fence:
+    - ".kb/"
+    - ".github/workflows/"
+    - ".githooks/"
+    - "tools/"
+    - "tests/"
+    - "AGENTS.md"
+    - "README.md"
+    - "实验室/README.md"
+    - "实验室/notes/skyfire-s2-tonemap.md"
+    - "指引/00 指引手册.md"
+    - "调研资料/技能包解包/技能包台账.tsv"
+  forbidden:
+    - "复刻/*/工程/原包源码/"
+    - "调研资料/技能包解包/*/"
+    - "tools/编排器/"
+    - "实验室/own/mini-renderer/"
+    - "调研资料/研究记录/3D渲染器*"
+    - "*.mp4, *.mov, *.zip, *.wav, *.exr"
+done_when:
+  - "D1 [Mode A 并行调研]: 3 个独立上下文子代理完成工作方式/工具门禁/产出质量全量取证，无未核实臆测"
+  - "D2 [先写失败测试 Red]: 针对发现的仓库真实工程缺陷编写自动化校验测试，且确认改良前失败 (Red)"
+  - "D3 [工程改良 Green]: 落地改良工具/CI/一致性校验后，新增测试集与统一门禁在 Python 3.9.6 (-I) 与默认 Python 下全部 exit 0 (Green)"
+  - "D4 [独立上下文三道门审核]: 独立 Reviewer 子代理按门1/门2/门3复审并全部解除阻断项，出具 review_report.md"
+  - "D5 [知识库与 PR]: 在隔离 worktree 更新 .kb/ 与 changelog.md，仅暂存作用域文件推送干净分支 feat/repo-harness-ci-2026-11 并创建 GitHub PR"
+undo_tier: "cleanup"
+max_attempts_per_node: 3

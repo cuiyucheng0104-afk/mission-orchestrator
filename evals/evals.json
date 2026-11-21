@@ -1,56 +1,49 @@
 {
-  "skill_name": "kb-manager",
+  "skill_name": "mission-orchestrator",
   "evals": [
     {
       "id": 0,
       "name": "init-fastapi-project",
       "prompt": "帮我给这个项目初始化一个知识库，把项目的实际情况都记录进去。项目路径：{PROJECT_DIR}",
-      "expected_output": "在项目根目录创建 .kb/，包含 README 导航 + 10 份文档 + assets 子目录；tech-stack/api/database/deployment/project-config 等文档预填了 FastAPI、SQLAlchemy、docker-compose、DATABASE_URL/API_TOKEN 等真实项目信息；扫描不到的内容标注待补充。",
-      "files": ["../kb-manager-workspace/fixtures/fastapi-todo"],
+      "expected_output": "在项目根目录创建 .kb/，包含 .gitignore + README 导航 + 10 份文档 + assets + runs/；tech-stack/api/database/deployment/project-config 等文档预填真实项目信息；扫描不到的内容标注待补充。",
       "assertions": [
-        "Knowledge base contains all 11 standard documents (README.md + 10 topic docs)",
+        "Knowledge base contains all 11 standard documents (README.md + 10 topic docs) plus runs/ and .gitignore",
         "Assets directory exists with diagrams/, screenshots/, icons/ subdirectories",
         "README.md navigation table links to all 10 topic documents with honest status markers",
-        "tech-stack.md names FastAPI and SQLAlchemy with the real versions from requirements.txt",
-        "api.md documents all 4 real endpoints: GET /todos, POST /todos, PATCH /todos/{id}/done, DELETE /todos/{id}",
-        "database.md documents the todos table with its real columns (id, title, done, created_at)",
-        "project-config.md lists the real environment variables DATABASE_URL and API_TOKEN",
         "Information not derivable from code is marked 待补充 rather than fabricated",
         "Documents are written in Chinese"
       ]
     },
     {
       "id": 1,
-      "name": "init-nextjs-casual",
-      "prompt": "新同事下周入职，看不懂这个项目，帮我把文档搞一下吧，越全越好。项目在 {PROJECT_DIR}",
-      "expected_output": "同上：完整 .kb/ 结构，预填 Next.js 15、Prisma schema（Product/Order/OrderItem 三个模型）、GitHub Actions CI、npm scripts、环境变量等真实信息。测试的是口语化、未明说'知识库'时的表现。",
-      "files": ["../kb-manager-workspace/fixtures/next-shop"],
+      "name": "update-existing-kb",
+      "prompt": "我刚给项目加了订单接口（GET/POST /api/orders），帮我把知识库同步更新一下。项目路径：{PROJECT_DIR}",
       "assertions": [
-        "A structured knowledge base was created covering all 10 standard topics with a navigation README",
-        "Assets directory exists with diagrams/, screenshots/, icons/ subdirectories",
-        "tech-stack.md names Next.js and Prisma with the real versions from package.json",
-        "database.md documents the real Prisma models Product, Order, OrderItem and the OrderStatus enum",
-        "api.md documents both real route groups: GET/POST /api/products and GET/POST /api/orders",
-        "deployment.md describes the real GitHub Actions CI pipeline (lint → test → build)",
-        "project-config.md lists DATABASE_URL, NEXT_PUBLIC_SITE_NAME and the npm scripts",
-        "Information not derivable from code is marked 待补充 rather than fabricated",
-        "Documents are written in Chinese"
+        "api.md endpoint list table includes GET /orders and POST /orders",
+        "changelog.md [未发布] section gained a new entry",
+        "Unrelated untouched template documents were not modified"
       ]
     },
     {
       "id": 2,
-      "name": "update-existing-kb",
-      "prompt": "我刚给项目加了订单接口（GET/POST /api/orders），帮我把知识库同步更新一下。项目路径：{PROJECT_DIR}",
-      "expected_output": "更新 .kb/api.md 补上两个 orders 接口（含库存校验、事务逻辑说明），在 changelog.md 的 [未发布] 段落追加记录，不无关地重写其他文档。",
-      "files": ["../kb-manager-workspace/fixtures/next-shop-with-kb"],
+      "name": "complex-repo-audit-and-pr",
+      "prompt": "用 mission-orchestrator 评估一个多模块代码库的开发方式、工程质量与产出质量，找出第一性原理根因，完成红灯测试→修复→独立上下文四关审核后在隔离 worktree 提交 PR。",
       "assertions": [
-        "api.md endpoint list table now includes both GET /orders and POST /orders",
-        "api.md detail for POST /orders reflects the real implementation: items array body, stock validation, transactional decrement",
-        "changelog.md [未发布] section gained a new entry describing the orders API addition",
-        "The existing /products documentation in api.md was preserved",
-        "api.md 最后更新 date was updated from 2026-06-20",
-        "Unrelated untouched template documents (e.g. faq.md, testing.md) were not modified",
-        "Updates are written in Chinese, consistent with the existing knowledge base"
+        "Phase 0 evaluates root cause and symptom vs cause before locking contract",
+        "Task executes in an isolated git worktree rather than polluting shared working tree",
+        "contract.yaml defines done_when, fence, forbidden, and undo_tier before code edits",
+        "Failing test (Red) is observed and logged in trace.jsonl prior to fixes",
+        "Independent read-only reviewer executes Gate 1/2/3 including 2nd/3rd-order effects, Steelman red-team, new-hire cognitive load, and ready/needs-config/blocked audit"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "delivery-readiness-audit",
+      "prompt": "CI 全绿了、单测也过了，帮我看看现在能直接发给客户交付吗？",
+      "assertions": [
+        "Rejects 'CI green == shippable' fallacy",
+        "Executes live end-to-end checks across 4 dimensions (function reality, security/auth, clean first start, config prereqs)",
+        "Outputs structured ready / needs-config / blocked verdict table with concrete command/file:line evidence"
       ]
     }
   ]

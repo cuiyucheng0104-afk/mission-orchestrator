@@ -1,160 +1,72 @@
-# kb-manager — 本地开发项目知识库管理 Skill
+# Mission Orchestrator — 长复杂任务编排器、工程质检标准与项目知识库超级技能
 
-> 📦 本仓库现含 **两个 skill**:`kb-manager`(根目录,即本文)与 [`delivery-readiness-audit/`](delivery-readiness-audit/)(**交付就绪审计** —— 在下"可交付 / 完成"结论前,按维度实测判 ready / needs-config / blocked,避免"CI 绿就以为能交付")。
-
-一个专门针对本地开发项目设计的知识库管理技能。一句话让 Claude 为任意代码项目建立一套
-**标准化、基于事实、可持续维护**的知识库，存放在项目根目录的 `.kb/` 隐藏文件夹中。
-
-> 知识库的目标读者是"三个月后的自己"和"刚加入的新同事"。
+> 原 `kb-manager-skill`（含 `kb-manager` 与 `delivery-readiness-audit`）全面进化升级版：融合 **Phase 0（第一性原理与 3 方案对齐）+ Harness + Loop + Graph + 多环节独立对抗评审（红队/二三阶影响/新人认知/四维交付实测）+ 全链路 `.kb/` 可溯源与 Obsidian 同步**。
 
 ---
 
-## 核心功能
+## 为什么从 `kb-manager` 升级为 `mission-orchestrator`？
 
-- **一键初始化完整知识库结构**：内置脚手架脚本，一次生成 10 份标准文档 + README 导航 + assets 资源目录，可安全重复运行（不覆盖已有文件）
-- **扫描代码库、预填真实内容**：初始化不是留一堆空模板——Claude 会通读 `package.json`、`requirements.txt`、`prisma/schema.prisma`、`docker-compose.yml`、`.env.example`、CI 配置等，把**真实的**版本号、接口、表结构、环境变量写进文档
-- **自动生成标准化 README 导航**：每份文档一行说明 + 诚实的状态标记（✅ 已完成 / 🚧 部分完成 / ⏳ 待补充）
-- **创建 assets 资源目录**：`diagrams/`（图表）、`screenshots/`（截图）、`icons/`（图标）
-- **维护工作流与最佳实践**：代码变更后同步更新文档、强制记录变更日志、查阅时以代码为准
-- **同步到 Obsidian**：一句话把知识库同步进 Obsidian 仓库——自动建立以项目名命名的文件夹和索引笔记，10 份文档加上 frontmatter、tags 与 wikilink 导航，可重复同步
+| 维度 | 原 `kb-manager` + `delivery-readiness-audit` | 升级后 `mission-orchestrator` v2.0 |
+|---|---|---|
+| **需求与根因把关** | 直接按指令开工 | **Phase 0**：辨析症状 vs 根因、手段 vs 目标；模糊/架构任务先提澄清问题 + 给 3 版差异化方案对齐 |
+| **执行隔离与契约** | 无任务级契约与分支隔离 | **Phase 1**：强制 `contract.yaml`（`done_when` + `fence` + `undo_tier`）+ 代码任务强制**独立 `git worktree`** |
+| **Loop 与 Graph 编排** | 无主动闭环与熔断 | **Phase 2–3**：`run_loop.py` AI-in-the-Loop 闭环 + `log_trace.py` 强制 `EXPECTED vs SAW` + **同错两次 `exit 2` 熔断**；按 Early-Start Test 拆分并行 Graph |
+| **多环节独立质检** | 仅终点做一次交付审计 | **Phase 4 三道门**：门 1 契约围栏 → 门 2 独立上下文代码审 + **二/三阶影响 + 钢人红队反驳 + 新人认知审计** → 门 3 四维实测审计（`ready / needs-config / blocked`） |
+| **历史沉淀与 Obsidian** | `.kb/` 11 份静态文档 + Obsidian 同步 | **Phase 5**：历史包袱清理、慢节点卡顿复盘、共性根因固化成 `tests/`/Hook/CI；`.kb/runs/<run-id>/` 全程轨迹入库并支持 `--no-record` 同步 Obsidian |
 
-## 10 个标准文档分类模板
+---
 
-| 文档 | 内容 | 回答的问题 |
-|------|------|-----------|
-| 技术栈文档 `tech-stack.md` | 所有技术选型、版本、决策记录（ADR 格式） | 用了什么技术，为什么选它 |
-| API 文档 `api.md` | 全局约定 + 完整接口列表 + 请求/响应示例 | 有哪些接口，怎么调用 |
-| 数据库架构 `database.md` | ER 图（Mermaid）、表结构、索引策略、迁移管理 | 数据长什么样，存在哪 |
-| 部署指南 `deployment.md` | Docker/K8s 配置、CI/CD 流程、发布与回滚 | 怎么部署到各个环境 |
-| 开发规范 `dev-standards.md` | 代码规范、Git 工作流、Conventional Commits | 代码怎么写，分支怎么管 |
-| 业务逻辑 `business-logic.md` | 业务流程图（Mermaid）、领域模型、业务规则清单 | 这个系统在业务上做什么 |
-| 测试文档 `testing.md` | 测试策略、运行方法、关键用例 | 怎么验证代码是对的 |
-| 项目配置 `project-config.md` | 环境变量表、配置说明、本地启动步骤 | 本地怎么跑起来 |
-| 常见问题 `faq.md` | FAQ 和故障排查通用步骤 | 踩过什么坑，怎么爬出来 |
-| 变更日志 `changelog.md` | Keep a Changelog 六类变动 + 版本历史 | 什么时候改了什么 |
+## 目录结构
 
-## 生成的知识库结构
-
-```
-<你的项目>/.kb/
-├── README.md            # 导航入口：文档索引 + 状态标记
-├── tech-stack.md        # 技术栈
-├── api.md               # API 文档
-├── database.md          # 数据库架构
-├── deployment.md        # 部署指南
-├── dev-standards.md     # 开发规范
-├── business-logic.md    # 业务逻辑
-├── testing.md           # 测试文档
-├── project-config.md    # 项目配置
-├── faq.md               # 常见问题
-├── changelog.md         # 变更日志
-└── assets/
-    ├── diagrams/        # 架构图、流程图
-    ├── screenshots/     # 界面截图
-    └── icons/           # 图标素材
-```
-
-## 怎么用
-
-安装后直接对 Claude 说（不需要精确指令，口语化也能触发）：
-
-| 你说 | Claude 做什么 |
-|------|--------------|
-| "帮我给这个项目初始化一个知识库" | 工作流一：建结构 → 扫描项目 → 预填真实内容 → 生成导航 → 汇报欠账清单 |
-| "新同事下周入职，帮我把文档搞一下" | 同上（不需要说出"知识库"三个字） |
-| "我刚加了订单接口，同步一下知识库" | 工作流二：只更新受影响的文档 + 在变更日志追加记录 + 刷新导航状态 |
-| "这个项目怎么部署？" | 工作流三：先查 `.kb/`，以文档回答；发现文档过时会主动提出更新 |
-| "把知识库同步到 Obsidian" | 工作流四：自动发现 Obsidian 仓库（发现不了就问你要路径），在 `项目知识库/<项目名>/` 下生成索引笔记 + 10 份带 wikilink 的文档 |
-
-## 三条写作铁律（技能的灵魂）
-
-1. **事实优先**：版本号、命令、路径全部来自项目本身，绝不凭"一般知识"编造。一条编造的版本号会让用户怀疑整个知识库。
-2. **诚实标注欠账**：扫描不到的内容（选型理由、业务背景等只有人知道的信息）标注 `⏳ 待补充`，宁缺毋滥。
-3. **变更必留痕**：每次更新知识库都必须在 `changelog.md` 追加记录——变更日志是知识库的审计线索。
-
-## 质量验证
-
-本技能的初始化与更新工作流经过完整评测验证（3 个真实项目场景 × 有/无技能对照；
-Obsidian 同步为后续新增，经边界测试与三方独立代码审查，暂未纳入对照评测）：
-
-| 指标 | 使用本技能 | 不用技能（基线） |
-|------|-----------|----------------|
-| 断言通过率 | **100%**（25/25） | 74%（18/25） |
-| 结构一致性 | 每次都是同一套 `.kb/` 结构 | 三次运行产出三种不同的临时结构 |
-| 防编造表现 | 把仅存在于注释中的"30 分钟自动取消"如实标注待确认 | 把它当成已实现功能写进了文档 |
-
-模板中引用的全部方法论（Keep a Changelog、Conventional Commits、SemVer、ADR、Diátaxis、
-12-Factor 配置、Mermaid 语法）均经过**多层核实**：8 个来源逐一抓取原文 → 每条事实由两名独立
-核查员（逐字核对 + 语义核对）双重确认 → 只有双重确认的事实才写入 → 成稿后再由独立审计员
-重新抓取全部来源逐条复核。详见 `references/best-practices.md`（每节均附已核实的来源链接）。
-
-## 技能文件结构
-
-```
-kb-manager/
-├── SKILL.md                    # 技能主文件（Claude 读取的工作流指令）
-├── README.md                   # 本说明（给人看的）
-├── scripts/
-│   ├── init_kb.py              # 一键初始化脚手架（幂等，可重复运行）
-│   └── sync_obsidian.py        # 同步知识库到 Obsidian 仓库（幂等，可重复运行）
-├── assets/templates/           # 11 份中文模板（README + 10 份主题文档）
-├── references/
-│   └── best-practices.md       # 方法论参考（按需加载，含全部已核实来源）
+```text
+mission-orchestrator/
+├── SKILL.md                             # 技能地图与 8 条 STOP 红线
+├── README.md                            # 本说明
+├── references/                          # 按需加载的方法论参考（Progressive Disclosure）
+│   ├── 00-first-principles-and-alignment.md
+│   ├── 01-harness-contract.md
+│   ├── 02-loop-and-graph.md
+│   ├── 03-multi-stage-review.md
+│   ├── 04-kb-and-obsidian.md
+│   ├── audit-dimensions.md
+│   └── kb-best-practices.md
+├── scripts/                             # 零依赖 Python 3.9+ 确定性脚本
+│   ├── init_kb.py                       # 初始化 .kb/ + .kb/.gitignore + runs/
+│   ├── init_mission.py                  # 生成 contract.yaml / PROGRESS / DEAD_ENDS / trace / review
+│   ├── log_trace.py                     # 追加 JSONL 轨迹 + 同错两次 exit 2 熔断
+│   ├── run_loop.py                      # Mode B 无人值守 AI-Gate-Feedback 循环引擎
+│   ├── sync_obsidian.py                 # 同步 .kb/ 与 runs/ 到 Obsidian（支持 --no-record）
+│   └── readiness-audit.workflow.js      # 并行交付就绪审计 Workflow 模板
+├── assets/templates/                    # 11 份标准化 .kb/ 中文文档模板
+├── examples/
+│   └── higgsfield-case-library-pr6/     # 真实复杂仓库实战案例（脱敏）
+├── tests/
+│   └── test_mission_orchestrator.py     # 自动化回归测试（自举门禁）
 └── evals/
-    └── evals.json              # 评测用例与断言（用于回归测试）
+    └── evals.json                       # 触发与行为断言评测集
 ```
+
+---
 
 ## 安装
 
-**Claude Code（个人技能，推荐）**：克隆到个人技能目录即可，之后 `git pull` 就能更新：
-
+### Claude Code
 ```bash
-git clone https://github.com/cuiyucheng0104-afk/kb-manager-skill.git ~/.claude/skills/kb-manager
+git clone https://github.com/cuiyucheng0104-afk/mission-orchestrator.git ~/.claude/skills/mission-orchestrator
 ```
 
-**项目级共享**：复制到项目的 `.claude/skills/kb-manager/` 下，随仓库提交，团队所有人可用。
-
-**一键安装包**：仓库 `dist/kb-manager.skill` 是打包好的技能文件，在支持的客户端中打开即可点击 Save skill 安装。
-
-> ⚠️ 安装后需要**新开一个会话**才生效——技能列表在会话启动时加载，已开着的会话看不到新装的技能。
-
-## 快速上手
-
-安装后新开会话，两种触发方式：
-
-**方式一：斜杠命令**——输入 `/kb-manager` 直接调用。
-
-**方式二：自然语言**（推荐，无需记命令）：
-
-```text
-你：帮我给这个项目初始化一个知识库
-Claude：（运行脚手架 → 扫描 package.json / schema / CI 配置 → 预填 10 份文档）
-        已创建 .kb/，其中 tech-stack、api、database 等 5 份已按代码实际情况填写，
-        技术选型理由、生产环境信息等 4 处标注了 ⏳ 待补充，需要你提供……
+### Antigravity（全局 Skill 软链）
+```bash
+ln -sfn ~/.claude/skills/mission-orchestrator ~/.gemini/antigravity/skills/mission-orchestrator
 ```
 
-```text
-你：我刚加了一个 /orders 接口，帮我同步一下知识库
-Claude：（读接口代码 → 更新 api.md → changelog.md 追加记录 → 刷新 README 状态）
+### 自检（零依赖，兼容 Python 3.9+）
+```bash
+python3 -B -m unittest discover -s tests -v
 ```
 
-```text
-你：这个项目怎么部署？
-Claude：（先查 .kb/deployment.md，按文档回答；若发现文档与代码不一致会主动提出修正）
-```
+---
 
-## 常见问题
+## 实战验证案例
 
-**Q：斜杠菜单里找不到 `/kb-manager`？**
-A：两个可能：① 技能没有装进 `~/.claude/skills/` 或项目 `.claude/skills/`（在别的目录不会被扫描）；② 装好后还在用旧会话——新开一个会话即可。
-
-**Q：怎么更新到最新版？**
-A：如果是 `git clone` 安装的，进 `~/.claude/skills/kb-manager` 执行 `git pull`；如果是手动复制的，重新复制一遍覆盖即可。
-
-**Q：`.kb/` 要不要提交进 git？**
-A：建议提交——知识库的价值在于团队共享和随代码演进。如果含敏感信息，按模板约定密钥只写"去哪里申请"，不写真实值，即可安全提交。
-
-**Q：已有项目文档（docs/ 等）怎么办？**
-A：初始化时告诉 Claude"参考现有 docs/ 目录"，它会把已有内容作为扫描素材填入对应模板；`.kb/` 与原有文档不冲突。
-
-安装后无需任何配置——Claude 会根据对话内容自动判断何时启用本技能。
+详见 [examples/higgsfield-case-library-pr6/CASE_STUDY.md](examples/higgsfield-case-library-pr6/CASE_STUDY.md)：用 `mission-orchestrator` 对 5,654 个文件的复杂研究库做三节点并行调研 → 先写红灯测试（8 failures, 1 error）→ 修复 6 处脚本与多处断链 → 独立上下文 `G_REV` 拦截共享分支污染（`P0-1`）与门禁盲区（`P1-1`/`P1-2`）→ 隔离 worktree 二审通过 → 创建 PR #6 并 10 秒跑通 GitHub Actions CI。
