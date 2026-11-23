@@ -33,7 +33,8 @@ mission-orchestrator/
 ├── scripts/                             # 零依赖 Python 3.9+ 确定性脚本
 │   ├── init_kb.py                       # 初始化 .kb/ + .kb/.gitignore + runs/
 │   ├── init_mission.py                  # 生成 contract.yaml / PROGRESS / DEAD_ENDS / trace / review
-│   ├── log_trace.py                     # 追加 JSONL 轨迹 + 同错两次 exit 2 熔断
+│   ├── log_trace.py                     # 追加 JSONL 轨迹 + 同错两次 exit 2 熔断（按去噪指纹比对）
+│   ├── check_fence.py                   # 门 1 硬墙：改动文件必须在 fence 内、forbidden 外
 │   ├── run_loop.py                      # Mode B 无人值守 AI-Gate-Feedback 循环引擎
 │   ├── sync_obsidian.py                 # 同步 .kb/ 与 runs/ 到 Obsidian（支持 --no-record）
 │   └── readiness-audit.workflow.js      # 并行交付就绪审计 Workflow 模板

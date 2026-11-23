@@ -32,7 +32,7 @@ description: >
 | **Phase 0** | 第一性原理、真伪需求辨析、提问对齐、3 方案、跨领域类比 | [00-first-principles-and-alignment.md](references/00-first-principles-and-alignment.md) | — |
 | **Phase 1** | Worktree 隔离、`contract.yaml`（`done_when`/`fence`/`undo_tier`）、`Write It Twice` | [01-harness-contract.md](references/01-harness-contract.md) | `scripts/init_mission.py` |
 | **Phase 2–3** | Loop vs Graph、Early-Start 并行、Evidence、`EXPECTED vs SAW`、同错两次退出 | [02-loop-and-graph.md](references/02-loop-and-graph.md) | `scripts/run_loop.py`, `scripts/log_trace.py` |
-| **Phase 4** | 三道门审核 + **二/三阶影响、钢人红队反驳、新人认知成本、四维实测交付审计** | [03-multi-stage-review.md](references/03-multi-stage-review.md) | `scripts/readiness-audit.workflow.js` |
+| **Phase 4** | 三道门审核 + **二/三阶影响、钢人红队反驳、新人认知成本、四维实测交付审计** | [03-multi-stage-review.md](references/03-multi-stage-review.md) | `scripts/check_fence.py`, `scripts/readiness-audit.workflow.js` |
 | **Phase 5** | **Git 历史包袱清理、慢节点/卡顿复盘、Bug 根因固化**、`.kb/` 更新与 Obsidian 同步 | [04-kb-and-obsidian.md](references/04-kb-and-obsidian.md) | `scripts/init_kb.py`, `scripts/sync_obsidian.py` |
 | **实战参考** | 完整脱敏端到端范例（`higgsfield-case-library` PR #6） | [CASE_STUDY.md](examples/higgsfield-case-library-pr6/CASE_STUDY.md) | — |
 
@@ -55,7 +55,7 @@ description: >
    - 默认单 Loop；仅在通过 Early-Start Test（无真实依赖可并行）、需独立上下文隔离或需冻结通过节点时拆 Graph；
    - 先写失败检查（Red）→ 实现修复（Green）→ 每步用 `log_trace.py` 记账，遇 `exit 2` 立刻升级。
 4. **Phase 4（多环节独立质检）**：
-   - 派出**独立上下文只读 Reviewer** 执行三道门：契约围栏核对 → **红队反驳 + 二/三阶推演 + 新人认知审查** → **四维度实测交付审计**（`ready / needs-config / blocked`，覆盖干净隔离环境如 `python3 -I`、`LC_ALL=C`、`无可选二进制` 场景）。
+   - 派出**独立上下文只读 Reviewer** 执行三道门：契约围栏核对（先跑 `check_fence.py <run_dir> --base <基准>`，非 0 即退回）→ **红队反驳 + 二/三阶推演 + 新人认知审查** → **四维度实测交付审计**（`ready / needs-config / blocked`，覆盖干净隔离环境如 `python3 -I`、`LC_ALL=C`、`无可选二进制` 场景）。
 5. **Phase 5（复盘沉淀与同步）**：
    - 审视 Git 演变与历史包袱（识别可安全删除的死代码/旧补丁）、排查流程慢点（如轮询空转/重复扫全库）、将本次暴露的共性根因固化进 `tests/` / Hook / CI / Skill；
    - 更新 `.kb/` 与 `changelog.md`，按需调用 `sync_obsidian.py`（提交前确认无本机路径文件入暂存区）。

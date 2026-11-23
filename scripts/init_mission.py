@@ -2,10 +2,14 @@
 """Initialize a traceable orchestrator mission run under <project_root>/.kb/runs/<run-id>/."""
 import argparse
 import datetime
+import json
 import re
+import sys
 from pathlib import Path
 
-from init_kb import init_kb
+# python3 -I（3.11+ 隐含 -P）不会把脚本目录放进 sys.path
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from init_kb import init_kb  # noqa: E402
 
 
 def slugify(text: str) -> str:
@@ -26,20 +30,24 @@ def main() -> None:
 
     ts = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
     run_id = args.run_id or f"{ts}-{slugify(args.goal)}"
+    if Path(run_id).name != run_id or run_id in (".", ".."):
+        parser.error(f"--run-id 不能含路径分隔符或是 . / ..：{run_id!r}")
     run_dir = root / ".kb" / "runs" / run_id
     run_dir.mkdir(parents=True, exist_ok=True)
 
     contract_path = run_dir / "contract.yaml"
     if not contract_path.exists():
         contract_path.write_text(
-            f'run_id: "{run_id}"\n'
-            f'goal: "{args.goal}"\n'
+            # JSON 字符串是合法的 YAML 双引号标量，目标里带引号/冒号也不会写坏契约
+            f"run_id: {json.dumps(run_id, ensure_ascii=False)}\n"
+            f"goal: {json.dumps(args.goal, ensure_ascii=False)}\n"
             f'root_cause: "⏳ Phase 0 第一性原理定位后填写"\n'
             f"inputs:\n"
             f'  - "⏳ 待补充：输入文件/Issue/日志"\n'
             f'output: "⏳ 待补充：期望交付物"\n'
             f"constraints:\n"
             f"  fence:\n"
+            f'    - ".kb/"\n'
             f'    - "⏳ 待补充：允许修改的文件或目录"\n'
             f"  forbidden:\n"
             f'    - "migrations/"\n'

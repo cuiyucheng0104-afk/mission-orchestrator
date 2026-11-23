@@ -4,7 +4,8 @@
 
 ## 门 1：契约与围栏核对（Contract Gate）
 
-- 核对 `git merge-base <base> HEAD` 与 `git diff --name-status <base>..HEAD`：
+- **机检硬墙（先跑，非 0 直接退回）**：`python3 <skill_dir>/scripts/check_fence.py .kb/runs/<run-id> --base <base>` —— 已提交、未提交、未跟踪的改动只要有一个在 `fence` 外或命中 `forbidden` 就 `exit 1`；`fence` 还是占位符、列表用了行内写法、或相对 `<base>` 零改动也 `exit 1`。看不到被 `.gitignore` 忽略的文件，这部分仍靠人工核对。
+- 再人工核对 `git merge-base <base> HEAD` 与 `git diff --name-status <base>..HEAD`：
   - 是否干净切自目标基线，零混入无关分支或他人未跟踪产物？
   - 改动文件是否 100% 落在 `contract.yaml` 的 `fence` 内、零触碰 `forbidden`？
 - 核对 `done_when`：每一条是否都有 `trace.jsonl` 中的真实命令输出/文件证据支撑？

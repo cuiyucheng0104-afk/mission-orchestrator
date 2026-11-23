@@ -17,6 +17,7 @@ inputs:
 output: "可审阅的 PR / 产物路径 / 报告"
 constraints:
   fence:
+    - ".kb/"   # 任务档案自己也是改动，必须在围栏内
     - "允许修改的目录或文件白名单"
   forbidden:
     - "禁止触碰的目录（如只读源码、migrations/、他人未跟踪目录）"

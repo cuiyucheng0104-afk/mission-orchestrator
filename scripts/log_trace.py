@@ -3,8 +3,24 @@
 import argparse
 import datetime
 import json
+import re
 import sys
 from pathlib import Path
+
+
+def fingerprint(saw: str) -> str:
+    """熔断比对用的指纹：抹掉每次重跑都会变的噪声（地址、目录前缀、数字、空白）。
+
+    shortcut: 只差数字或只差目录的两个不同错误会被并成一个而提前熔断——宁可早停问人，
+    也不放过换了时间戳的同一个错；误停变多时再细分规则。带空格的路径不处理。
+    """
+    s = re.sub(r"0x[0-9a-fA-F]+", "H", saw)
+    s = re.sub(r"[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}", "H", s)  # UUID
+    s = re.sub(r"\b(?=[0-9a-fA-F]*\d)[0-9a-fA-F]{8,}\b", "H", s)  # 提交号/哈希（至少含一个数字）
+    # /tmp/tmpab12/t.py 和 C:\Users\a\t.py 都只留 t.py
+    s = re.sub(r"(?:[A-Za-z]:)?(?:[\\/][^\s\\/:\"']+)+[\\/]", "", s)
+    s = re.sub(r"\d+", "N", s)
+    return " ".join(s.split())
 
 
 def main() -> None:
@@ -33,7 +49,7 @@ def main() -> None:
             try:
                 rec = json.loads(line)
                 if rec.get("node") == args.node and rec.get("status") in ("fail", "crash") and rec.get("saw"):
-                    prior_saws.append(rec["saw"].strip())
+                    prior_saws.append(fingerprint(rec["saw"]))
             except json.JSONDecodeError:
                 pass
 
@@ -50,7 +66,7 @@ def main() -> None:
     with trace_path.open("a", encoding="utf-8") as f:
         f.write(json.dumps(event, ensure_ascii=False) + "\n")
 
-    if args.status in ("fail", "crash") and args.saw.strip() and args.saw.strip() in prior_saws:
+    if args.status in ("fail", "crash") and args.saw.strip() and fingerprint(args.saw) in prior_saws:
         print(
             f"[log_trace] SAME-RESULT-TWICE DETECTED on node={args.node}: {args.saw.strip()!r}. "
             "Stop retrying and escalate to human!",
